@@ -41,6 +41,11 @@ tauri = { workspace = true, features = ["wry"] }
 [target."cfg(windows)".dependencies]
 win7-notifications = { version = "0.4.5", optional = true }
 windows-version = { version = "0.1", optional = true }
+windows-core = { version = "0.61" }
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Storage_Packaging_Appx",
+] }
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 notify-rust = "4.11"

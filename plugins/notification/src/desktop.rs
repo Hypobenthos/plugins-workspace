@@ -64,6 +64,34 @@ impl<R: Runtime> Notification<R> {
     }
 }
 
+#[cfg(windows)]
+fn is_packaged() -> bool {
+    use windows::Win32::Foundation::{
+        APPMODEL_ERROR_NO_PACKAGE, ERROR_INSUFFICIENT_BUFFER, ERROR_SUCCESS,
+    };
+    use windows::Win32::Storage::Packaging::Appx::GetCurrentPackageFullName;
+    use windows_core::PWSTR;
+
+    unsafe {
+        let mut length: u32 = 0;
+        let result = GetCurrentPackageFullName(&mut length, None);
+
+        if result == APPMODEL_ERROR_NO_PACKAGE {
+            return false;
+        }
+
+        if result != ERROR_INSUFFICIENT_BUFFER {
+            return false;
+        }
+
+        let mut buffer = vec![0u16; length as usize];
+        let result =
+            GetCurrentPackageFullName(&mut length, Some(PWSTR::from_raw(buffer.as_mut_ptr())));
+
+        result == ERROR_SUCCESS
+    }
+}
+
 mod imp {
     //! Types and functions related to desktop notifications.
 
@@ -179,13 +207,17 @@ mod imp {
             }
             #[cfg(windows)]
             {
+                use crate::desktop::is_packaged;
+
                 let exe = tauri::utils::platform::current_exe()?;
                 let exe_dir = exe.parent().expect("failed to get exe directory");
                 let curr_dir = exe_dir.display().to_string();
                 // set the notification's System.AppUserModel.ID only when running the installed app
-                if !(curr_dir.ends_with(format!("{SEP}target{SEP}debug").as_str())
-                    || curr_dir.ends_with(format!("{SEP}target{SEP}release").as_str()))
-                {
+                let is_dev_build = curr_dir.ends_with(format!(r"{SEP}target{SEP}debug").as_str())
+                    || curr_dir.ends_with(format!(r"{SEP}target{SEP}release").as_str());
+
+                if !is_dev_build && !is_packaged() {
+                    // 仅在“未打包”场景下自定义 AUMID
                     notification.app_id(&self.identifier);
                 }
             }
